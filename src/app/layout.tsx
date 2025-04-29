@@ -29,8 +29,21 @@ export default function RootLayout({
           async
           src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1582802394629250"
           crossOrigin="anonymous"
-          strategy="beforeInteractive"
+          strategy="afterInteractive"
         />
+        <Script
+          async
+          src="https://www.googletagmanager.com/gtag/js?id=G-CRDP95RP1X"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', 'G-CRDP95RP1X');
+          `}
+        </Script>
       </head>
       <body
         className={`${funnelSans.variable} antialiased`}
