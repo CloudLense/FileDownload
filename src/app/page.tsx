@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import AnimatedText from '@/components/AnimatedText';
+import Link from 'next/link';
 
 export default function Home() {
   const [url, setUrl] = useState('');
@@ -95,6 +96,35 @@ export default function Home() {
 
           <div className="mt-8 text-center text-gray-600 dark:text-gray-400">
             <p>🎶 Just drop the link above, hit download, and your favorite music or video will be ready to save — easy peasy, no tech skills needed! 📂✨</p>
+          </div>
+
+          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Fast & Easy</h3>
+              <p className="text-gray-600 dark:text-gray-400">Download files in seconds with our simple interface. No complicated steps required.</p>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Secure</h3>
+              <p className="text-gray-600 dark:text-gray-400">Your downloads are processed securely. We don&apos;t store your files or personal data.</p>
+            </div>
+            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Free</h3>
+              <p className="text-gray-600 dark:text-gray-400">Use our service completely free of charge. No hidden fees or subscriptions.</p>
+            </div>
+          </div>
+
+          <div className="mt-12 flex flex-wrap justify-center gap-4">
+            <Link href="/help" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+              Help & FAQ
+            </Link>
+            <span className="text-gray-400">•</span>
+            <Link href="/privacy" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+              Privacy Policy
+            </Link>
+            <span className="text-gray-400">•</span>
+            <Link href="/terms" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
+              Terms of Service
+            </Link>
           </div>
         </div>
       </div>

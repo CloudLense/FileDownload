@@ -10,7 +10,7 @@ const funnelSans = Funnel_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "File Downloader",
+  title: "dwnld.in",
   description: "A simple and efficient tool to download files from various sources",
   other: {
     'google-adsense-account': 'ca-pub-1582802394629250',
