@@ -148,24 +148,52 @@ function generateUID(year: string, month: string, day: string, type: string): st
   return `${year}${month}${day}-${type}@vitragvani-calendar.com`;
 }
 
-// Helper function to create VEVENT for daily tithi
-function createTithiEvent(day: CalendarDay, sunriseSunset?: SunriseSunsetResponse): string {
-  const uid = generateUID(day.en_year, day.en_month, day.en_date, 'tithi');
+
+// Helper function to create VEVENT for combined daily tithi and special events
+function createCombinedEvent(day: CalendarDay, sunriseSunset?: SunriseSunsetResponse): string {
+  const uid = generateUID(day.en_year, day.en_month, day.en_date, 'combined');
   const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
   const dtstart = formatICalDate(day.en_year, day.en_month, day.en_date);
   
-  const summary = `${day.cal_sud_vad} ${day.cal_tithi} - ${day.cal_month}`;
+  // Determine if there's a special event
+  const hasSpecialEvent = day.cal_event === "1" && day.cal_event_details.trim();
   
-  let description = `Calendar Day: ${day.cal_day}\\n`;
-  description += `Tithi: ${day.cal_tithi}\\n`;
-  description += `Sud/Vad: ${day.cal_sud_vad}\\n`;
-  description += `Month: ${day.cal_month}\\n`;
-  description += `Veer Year: ${day.cal_veer_year}\\n`;
-  description += `Vikram Year: ${day.cal_vikram_year}`;
+  // Clean HTML tags from event details if present
+  const cleanEventDetails = hasSpecialEvent 
+    ? day.cal_event_details
+        .replace(/<br\s*\/?>/gi, '\\n')
+        .replace(/<[^>]*>/g, '')
+        .trim()
+    : '';
+  
+  // Create summary based on whether there's a special event
+  let summary: string;
+  if (hasSpecialEvent) {
+    const firstLine = cleanEventDetails.split('\\n')[0] || 'Special Event';
+    const tithiText = day.cal_tithi.includes('/') ? day.cal_tithi.split('/')[0].trim() : day.cal_tithi;
+    summary = `🎉 ${firstLine} (${day.cal_sud_vad} ${tithiText} - ${day.cal_month})`;
+  } else {
+    const tithiText = day.cal_tithi.includes('/') ? day.cal_tithi.split('/')[0].trim() : day.cal_tithi;
+    summary = `${day.cal_sud_vad} ${tithiText} - ${day.cal_month} (${day.en_day})`;
+  }
+  
+  // Create comprehensive description
+  let description = `📅 Jain Calendar Information\\n\\n`;
+  
+  if (hasSpecialEvent) {
+    description += `🎉 Special Event:\\n${cleanEventDetails}\\n\\n`;
+  }
+  
+  description += `📆 Calendar Day: ${day.cal_day}\\n`;
+  description += `🌙 Tithi: ${day.cal_tithi}\\n`;
+  description += `📈 Sud/Vad: ${day.cal_sud_vad}\\n`;
+  description += `🗓️ Month: ${day.cal_month}\\n`;
+  description += `📜 Veer Year: ${day.cal_veer_year}\\n`;
+  description += `📜 Vikram Year: ${day.cal_vikram_year}`;
   
   if (sunriseSunset) {
-    description += `\\nSunrise: ${sunriseSunset.sunrisetime}\\n`;
-    description += `Sunset: ${sunriseSunset.sunsettime}`;
+    description += `\\n\\n🌅 Sunrise: ${sunriseSunset.sunrisetime}\\n`;
+    description += `🌇 Sunset: ${sunriseSunset.sunsettime}`;
   }
 
   const event = [
@@ -181,33 +209,6 @@ function createTithiEvent(day: CalendarDay, sunriseSunset?: SunriseSunsetRespons
   return event;
 }
 
-// Helper function to create VEVENT for special events
-function createSpecialEvent(day: CalendarDay): string {
-  const uid = generateUID(day.en_year, day.en_month, day.en_date, 'special');
-  const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
-  const dtstart = formatICalDate(day.en_year, day.en_month, day.en_date);
-  
-  // Clean HTML tags from event details
-  const cleanEventDetails = day.cal_event_details
-    .replace(/<br\s*\/?>/gi, '\\n')
-    .replace(/<[^>]*>/g, '')
-    .trim();
-  
-  const summary = cleanEventDetails.split('\\n')[0] || 'Special Event';
-  const description = `Special Event Details:\\n${cleanEventDetails}\\n\\nCalendar Info:\\nTithi: ${day.cal_tithi}\\nSud/Vad: ${day.cal_sud_vad}\\nMonth: ${day.cal_month}`;
-
-  const event = [
-    'BEGIN:VEVENT',
-    `UID:${uid}`,
-    `DTSTAMP:${dtstamp}`,
-    `DTSTART;VALUE=DATE:${dtstart}`,
-    `SUMMARY:${escapeICalText(summary)}`,
-    `DESCRIPTION:${escapeICalText(description)}`,
-    'END:VEVENT'
-  ].join('\r\n');
-
-  return event;
-}
 
 export async function GET(request: Request) {
   try {
@@ -253,21 +254,15 @@ export async function GET(request: Request) {
         continue;
       }
 
-      // Always create tithi event
+      // Create single combined event for each day
       let sunriseSunset: SunriseSunsetResponse | null = null;
       
       if (lat && lng) {
         sunriseSunset = await fetchSunriseSunset(day.en_date, day.en_month, day.en_year, lat, lng);
       }
       
-      const tithiEvent = createTithiEvent(day, sunriseSunset || undefined);
-      icalContent += tithiEvent + '\r\n';
-
-      // Create special event if cal_event = "1"
-      if (day.cal_event === "1" && day.cal_event_details.trim()) {
-        const specialEvent = createSpecialEvent(day);
-        icalContent += specialEvent + '\r\n';
-      }
+      const combinedEvent = createCombinedEvent(day, sunriseSunset || undefined);
+      icalContent += combinedEvent + '\r\n';
     }
 
     icalContent += 'END:VCALENDAR';

@@ -185,20 +185,20 @@ export default function CalendarTest() {
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Daily Events</h4>
                   <ul className="space-y-1 text-sm">
-                    <li>• Tithi information (Sud/Vad)</li>
-                    <li>• Jain calendar month</li>
+                    <li>• Enhanced titles: "Sud 14 - Kartak (Tuesday)"</li>
+                    <li>• Emoji-rich descriptions with icons</li>
+                    <li>• Tithi, Sud/Vad, and calendar month</li>
                     <li>• Veer and Vikram years</li>
-                    <li>• Calendar day names</li>
                   </ul>
                 </div>
                 
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Special Events</h4>
                   <ul className="space-y-1 text-sm">
-                    <li>• Tirthankar Kalyaanaks</li>
-                    <li>• Religious festivals</li>
-                    <li>• Important dates</li>
-                    <li>• Historical events</li>
+                    <li>• Clear titles: "🎉 Tirthankar Kalyaanak"</li>
+                    <li>• Detailed event descriptions</li>
+                    <li>• Religious festivals and important dates</li>
+                    <li>• Historical events with context</li>
                   </ul>
                 </div>
                 
