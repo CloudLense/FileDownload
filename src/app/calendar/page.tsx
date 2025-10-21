@@ -166,12 +166,12 @@ export default function CalendarTest() {
                 
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">3</span>
-                  <p>Paste the URL in the "URL of calendar" field</p>
+                  <p>Paste the URL in the &quot;URL of calendar&quot; field</p>
                 </div>
                 
                 <div className="flex items-start gap-3">
                   <span className="flex-shrink-0 w-6 h-6 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm font-medium">4</span>
-                  <p>Click "Add calendar" to subscribe</p>
+                  <p>Click &quot;Add calendar&quot; to subscribe</p>
                 </div>
               </div>
             </div>

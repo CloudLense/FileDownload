@@ -235,7 +235,6 @@ export async function GET(request: Request) {
     }
 
     // Generate iCal content
-    const dtstamp = new Date().toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
     
     let icalContent = [
       'BEGIN:VCALENDAR',
