@@ -185,7 +185,7 @@ export default function CalendarTest() {
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Daily Events</h4>
                   <ul className="space-y-1 text-sm">
-                    <li>• Enhanced titles: "Sud 14 - Kartak (Tuesday)"</li>
+                    <li>• Enhanced titles: &ldquo;Sud 14 - Kartak (Tuesday)&rdquo;</li>
                     <li>• Emoji-rich descriptions with icons</li>
                     <li>• Tithi, Sud/Vad, and calendar month</li>
                     <li>• Veer and Vikram years</li>
@@ -195,7 +195,7 @@ export default function CalendarTest() {
                 <div>
                   <h4 className="font-medium text-gray-900 dark:text-white mb-2">Special Events</h4>
                   <ul className="space-y-1 text-sm">
-                    <li>• Clear titles: "🎉 Tirthankar Kalyaanak"</li>
+                    <li>• Clear titles: &ldquo;🎉 Tirthankar Kalyaanak&rdquo;</li>
                     <li>• Detailed event descriptions</li>
                     <li>• Religious festivals and important dates</li>
                     <li>• Historical events with context</li>
