@@ -1,25 +1,31 @@
 #!/usr/bin/env python3
 """Builds public/dwnld.shortcut, the iOS share-sheet Shortcut.
 
-Flow: Share sheet (or clipboard) → first URL → GET /api/resolve?format=shortcut&v=N
+Flow: Share sheet (any type) → URLs in it, else clipboard → GET /api/resolve?format=shortcut&v=N
 → show the error, or download every returned URL and save it to Photos, then
 → if the reply carries an "update" notice, offer to open dwnld.in/shortcut.
 
 The version comes from shortcut.json, which the site reads too.
 
 Usage (macOS, signed in to iCloud; iOS only imports signed shortcuts):
-    python3 scripts/build-shortcut.py [https://dwnld.in]
+    python3 scripts/build-shortcut.py [https://dwnld.in] [--open]
+
+Besides public/dwnld.shortcut it writes "dwnld vN.shortcut" to a temp folder;
+Shortcuts names imports after the file, so each version is easy to tell apart.
+--open imports that copy into the Shortcuts app.
 """
 
 import json
 import plistlib
+import shutil
 import subprocess
 import sys
 import tempfile
 import uuid
 from pathlib import Path
 
-BASE_URL = (sys.argv[1] if len(sys.argv) > 1 else "https://dwnld.in").rstrip("/")
+ARGS = [a for a in sys.argv[1:] if not a.startswith("--")]
+BASE_URL = (ARGS[0] if ARGS else "https://dwnld.in").rstrip("/")
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "public" / "dwnld.shortcut"
 VERSION = json.loads((ROOT / "shortcut.json").read_text())["version"]
@@ -51,13 +57,28 @@ def action(identifier: str, **params) -> dict:
     return {"WFWorkflowActionIdentifier": f"is.workflow.actions.{identifier}", "WFWorkflowActionParameters": params}
 
 
-urls, first, encoded, resolved, error, media, item, update = (new_id() for _ in range(8))
-if_group, repeat_group, update_group = new_id(), new_id(), new_id()
+urls, clipboard, encoded, resolved, error, media, item, update = (new_id() for _ in range(8))
+link_group, if_group, repeat_group, update_group = new_id(), new_id(), new_id(), new_id()
+LINK = {"Type": "Variable", "VariableName": "link"}
 
 actions = [
+    # Like YAS: take any share-sheet input (apps such as X share rich items,
+    # not plain URLs), pull URLs out of it, and fall back to the clipboard.
     action("detect.link", UUID=urls, WFInput=attachment({"Type": "ExtensionInput"})),
-    action("getitemfromlist", UUID=first, WFItemSpecifier="First Item", WFInput=attachment(output(urls, "URLs"))),
-    action("urlencode", UUID=encoded, WFInput=text(OBJ, output(first, "Item from List"))),
+    action(
+        "conditional",
+        GroupingIdentifier=link_group,
+        WFControlFlowMode=0,
+        WFCondition=100,  # "has any value"
+        WFInput={"Type": "Variable", "Variable": attachment(output(urls, "URLs"))},
+    ),
+    action("setvariable", WFVariableName="link", WFInput=attachment(output(urls, "URLs"))),
+    action("conditional", GroupingIdentifier=link_group, WFControlFlowMode=1),
+    action("getclipboard", UUID=clipboard),
+    action("setvariable", WFVariableName="link", WFInput=attachment(output(clipboard, "Clipboard"))),
+    action("conditional", GroupingIdentifier=link_group, WFControlFlowMode=2, UUID=new_id()),
+    # The server finds the first link in whatever text arrives.
+    action("urlencode", UUID=encoded, WFInput=text(OBJ, LINK)),
     action(
         "downloadurl",
         UUID=resolved,
@@ -119,7 +140,28 @@ shortcut = {
     "WFWorkflowMinimumClientVersionString": "900",
     "WFWorkflowIcon": {"WFWorkflowIconStartColor": 4251333119, "WFWorkflowIconGlyphNumber": 59511},
     "WFWorkflowTypes": ["ActionExtension"],
-    "WFWorkflowInputContentItemClasses": ["WFURLContentItem", "WFStringContentItem"],
+    # Every input type, as YAS does: restricting to URL/Text made iOS hand
+    # the Shortcut nothing when X shared a post.
+    "WFWorkflowInputContentItemClasses": [
+        "WFAppStoreAppContentItem",
+        "WFArticleContentItem",
+        "WFContactContentItem",
+        "WFDateContentItem",
+        "WFEmailAddressContentItem",
+        "WFFolderContentItem",
+        "WFGenericFileContentItem",
+        "WFImageContentItem",
+        "WFiTunesProductContentItem",
+        "WFLocationContentItem",
+        "WFDCMapsLinkContentItem",
+        "WFAVAssetContentItem",
+        "WFPDFContentItem",
+        "WFPhoneNumberContentItem",
+        "WFRichTextContentItem",
+        "WFSafariWebPageContentItem",
+        "WFStringContentItem",
+        "WFURLContentItem",
+    ],
     "WFWorkflowHasShortcutInputVariables": True,
     "WFWorkflowNoInputBehavior": {"Name": "WFWorkflowNoInputBehaviorGetClipboard", "Parameters": {}},
     "WFWorkflowOutputContentItemClasses": [],
@@ -134,4 +176,9 @@ with tempfile.TemporaryDirectory() as tmp:
         plistlib.dump(shortcut, f, fmt=plistlib.FMT_BINARY)
     subprocess.run(["shortcuts", "sign", "--mode", "anyone", "--input", str(unsigned), "--output", str(OUT)], check=True)
 
+named = Path(tempfile.gettempdir()) / f"dwnld v{VERSION}.shortcut"
+shutil.copyfile(OUT, named)
 print(f"wrote {OUT} (v{VERSION}, {OUT.stat().st_size} bytes) for {BASE_URL}")
+print(f"import copy: {named}")
+if "--open" in sys.argv:
+    subprocess.run(["open", "-a", "Shortcuts", str(named)], check=True)

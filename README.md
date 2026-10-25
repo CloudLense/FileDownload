@@ -41,7 +41,9 @@ npm run lint
 `public/dwnld.shortcut` is generated and signed by `scripts/build-shortcut.py` (macOS, signed in to iCloud):
 
 ```bash
-python3 scripts/build-shortcut.py https://dwnld.in
+python3 scripts/build-shortcut.py --open   # opens "dwnld vN" in Shortcuts
 ```
+
+To release a version: bump `version` in `shortcut.json`, run the script, add the shortcut, delete the older "dwnld v…" from your library, then Share → Copy iCloud Link and put it in `shortcut.json`. Older versions show an update prompt after their next download.
 
 It calls `GET /api/resolve?format=shortcut&url=…`, which always returns HTTP 200 with either `{ urls: [...] }` or `{ error }`.
