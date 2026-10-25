@@ -1,0 +1,17 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+# netlify/edge-functions/dl.ts registers itself on /dl via its inline config.
+# Required env vars (Site configuration → Environment variables, scope "All"):
+#   DOWNLOAD_SECRET  long random string; signs download links
+# Optional:
+#   COBALT_API_URL   your cobalt instance, e.g. https://cobalt.example.com/
+#   COBALT_API_KEY   if that instance requires an API key
+#   NEXT_PUBLIC_SHORTCUT_ICLOUD_URL  iCloud link to the shared iOS Shortcut
+
+[[headers]]
+  for = "/dwnld.shortcut"
+  [headers.values]
+    Content-Type = "application/octet-stream"
+    Content-Disposition = "attachment; filename=\"dwnld.shortcut\""

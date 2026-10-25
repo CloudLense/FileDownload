@@ -1,133 +1,93 @@
-'use client';
+import { Suspense } from 'react';
+import Downloader from '@/components/Downloader';
+import ShareSheetDemo from '@/components/ShareSheetDemo';
+import { SiteFooter, SiteHeader } from '@/components/SiteShell';
+import Wordmark from '@/components/Wordmark';
 
-import { useState } from 'react';
-import AnimatedText from '@/components/AnimatedText';
-import Link from 'next/link';
+const STEPS = [
+  { title: 'Copy the link', body: 'Share → Copy link, on any reel, post, video or tweet.' },
+  { title: 'Paste it above', body: 'We find every photo and video in the post, at the best quality on offer.' },
+  { title: 'Save', body: 'Straight to your device. TikToks come without the watermark.' },
+];
+
+const FAQ = [
+  {
+    q: 'Which sites work?',
+    a: 'Instagram reels, posts and carousels; TikTok videos and photo posts; X / Twitter; LinkedIn; YouTube; plus Facebook, Reddit and Pinterest. The post has to be public.',
+  },
+  {
+    q: 'Do I need an account or an app?',
+    a: 'No. It’s free and runs in your browser. We don’t store your files or the links you paste; your recent links stay in your own browser.',
+  },
+  {
+    q: 'How do I get videos into my iPhone’s Photos?',
+    a: 'Add the dwnld Shortcut once, then tap Share → dwnld in any app. Without it: tap Save here, open the download in Safari and choose Save Video.',
+  },
+  {
+    q: 'Is there a faster way than copy and paste?',
+    a: 'Type dwnld.in/ in front of any link in your address bar, for example dwnld.in/x.com/nasa/status/…, and the download starts right away.',
+  },
+  {
+    q: 'A link didn’t work. What now?',
+    a: 'Private accounts, age-restricted videos and deleted posts can’t be downloaded. If the post is public, wait a minute and try again, or write to support@dwnld.in with the link.',
+  },
+];
 
 export default function Home() {
-  const [url, setUrl] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsLoading(true);
-    setError('');
-
-    try {
-      // Call the API route with the URL as a query parameter
-      const response = await fetch(`/api/download?url=${encodeURIComponent(url)}`);
-
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error || 'Failed to download file');
-      }
-
-      // Get filename from headers
-      let filename = 'downloaded-file';
-      const contentDisposition = response.headers.get('content-disposition');
-      if (contentDisposition) {
-        const match = contentDisposition.match(/filename="([^"]+)"/);
-        if (match) filename = match[1];
-      }
-
-      // Create blob from response
-      const blob = await response.blob();
-
-      // Create download link
-      const link = document.createElement('a');
-      link.href = URL.createObjectURL(blob);
-      link.download = filename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(link.href);
-
-      setUrl('');
-    } catch (error) {
-      setError(error instanceof Error ? error.message : 'Failed to download file');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   return (
-    <div className="min-h-screen bg-white dark:bg-gray-900 transition-colors duration-200">
-      <div className="max-w-4xl mx-auto px-4 py-16">
-        <div className="flex flex-col items-center justify-center gap-8">
-          <AnimatedText />
-          
-          <form onSubmit={handleSubmit} className="w-full max-w-lg">
-            <div className="relative">
-              <input
-                type="text"
-                value={url}
-                onChange={(e) => setUrl(e.target.value)}
-                placeholder="Enter URL to download"
-                className="w-full px-6 py-4 text-lg rounded-xl border-2 border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition-all duration-200"
-                required
-              />
-              <button 
-                type="submit"
-                disabled={isLoading}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 px-6 py-2 rounded-lg transition-all duration-200 ${
-                  isLoading 
-                    ? 'bg-gray-400 dark:bg-gray-600 cursor-not-allowed' 
-                    : 'bg-blue-500 hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700'
-                } text-white font-medium shadow-lg hover:shadow-xl`}
-              >
-                {isLoading ? (
-                  <span className="flex items-center gap-2">
-                    <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
-                    Downloading...
+    <div className="flex min-h-dvh flex-col">
+      <SiteHeader />
+      <main className="mx-auto w-full max-w-5xl flex-1 px-4 sm:px-8">
+        <section className="pt-6 sm:pt-12">
+          <h1 className="sr-only">dwnld: download videos and photos from any link</h1>
+          <Wordmark />
+          <p className="mt-6 max-w-xl text-pretty text-lg leading-relaxed text-muted sm:text-xl">
+            Paste a link from Instagram, TikTok, X, LinkedIn or YouTube and keep the video or photo. No app, no sign-up, no watermark.
+          </p>
+          <div className="mt-8 max-w-3xl">
+            <Suspense>
+              <Downloader />
+            </Suspense>
+          </div>
+        </section>
+
+        <section className="mt-28" aria-labelledby="how-title">
+          <h2 id="how-title" className="sr-only">
+            How it works
+          </h2>
+          <ol className="grid gap-8 sm:grid-cols-3 sm:gap-6">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="border-t-2 border-ink pt-4">
+                <span className="font-display text-5xl font-extrabold leading-none text-accent [font-stretch:75%]">{i + 1}</span>
+                <h3 className="mt-3 text-lg font-semibold text-ink">{s.title}</h3>
+                <p className="mt-1 text-[15px] leading-relaxed text-muted">{s.body}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <ShareSheetDemo />
+
+        <section className="mt-16 grid gap-8 md:grid-cols-[1fr_2fr]" aria-labelledby="faq-title">
+          <h2 id="faq-title" className="font-display text-4xl font-bold tracking-tight text-ink [font-stretch:85%]">
+            Questions
+          </h2>
+          <div className="border-b border-line">
+            {FAQ.map((f) => (
+              <details key={f.q} className="group border-t border-line py-5 [&_summary::-webkit-details-marker]:hidden">
+                <summary className="flex cursor-pointer list-none items-center justify-between gap-6 text-lg font-medium text-ink">
+                  {f.q}
+                  <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-line text-muted transition-transform duration-500 [transition-timing-function:var(--spring)] group-open:rotate-45">
+                    +
                   </span>
-                ) : (
-                  'Download'
-                )}
-              </button>
-            </div>
-            {error && (
-              <p className="mt-2 text-red-500 text-sm">{error}</p>
-            )}
-          </form>
-
-          <div className="mt-8 text-center text-gray-600 dark:text-gray-400">
-            <p>🎶 Just drop the link above, hit download, and your favorite music or video will be ready to save — easy peasy, no tech skills needed! 📂✨</p>
+                </summary>
+                <p className="mt-2 max-w-prose text-[15px] leading-relaxed text-muted">{f.a}</p>
+              </details>
+            ))}
           </div>
-
-          <div className="mt-12 grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-4xl">
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Fast & Easy</h3>
-              <p className="text-gray-600 dark:text-gray-400">Download files in seconds with our simple interface. No complicated steps required.</p>
-            </div>
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Secure</h3>
-              <p className="text-gray-600 dark:text-gray-400">Your downloads are processed securely. We don&apos;t store your files or personal data.</p>
-            </div>
-            <div className="p-6 bg-gray-50 dark:bg-gray-800 rounded-xl">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">Free</h3>
-              <p className="text-gray-600 dark:text-gray-400">Use our service completely free of charge. No hidden fees or subscriptions.</p>
-            </div>
-          </div>
-
-          <div className="mt-12 flex flex-wrap justify-center gap-4">
-            <Link href="/help" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
-              Help & FAQ
-            </Link>
-            <span className="text-gray-400">•</span>
-            <Link href="/privacy" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
-              Privacy Policy
-            </Link>
-            <span className="text-gray-400">•</span>
-            <Link href="/terms" className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300">
-              Terms of Service
-            </Link>
-          </div>
-        </div>
-      </div>
+        </section>
+      </main>
+      <SiteFooter />
     </div>
   );
 }

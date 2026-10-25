@@ -1,67 +1,47 @@
-# File Downloader
+# dwnld.in
 
-A modern web application built with Next.js for downloading files from various sources. The application features a clean and intuitive interface with the Funnel Sans font for optimal readability.
+Paste a link from Instagram, TikTok, X, LinkedIn or YouTube and save the video or photo. Includes an iOS share-sheet Shortcut and an Android share target.
 
-## Features
+## How it works
 
-- Simple and efficient file downloading
-- Modern and responsive UI
-- Built with Next.js 14
-- TypeScript support
-- Optimized font loading with next/font
-
-## Getting Started
-
-### Prerequisites
-
-- Node.js 18.17 or later
-- npm, yarn, or pnpm
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/yourusername/file-downloader.git
-cd file-downloader
+```
+browser / iOS Shortcut
+   │  GET /api/resolve?url=…           (Netlify Function, Node: small JSON, < 10 s)
+   ▼
+src/lib/extract/*  ── X ........ api.fxtwitter.com (public API)
+                   ── TikTok ... tikwm.com (public API, no watermark)
+                   ── LinkedIn . public post HTML
+                   ── anything else / fallback → your cobalt instance (optional)
+   │  returns media list with signed /dl?t=… links
+   ▼
+GET /dl?t=…  (Netlify Edge Function: streams the file, no size cap)
 ```
 
-2. Install dependencies:
+Why the split: Netlify Functions buffer responses and cap them at 6 MB, which broke the old `/api/download`. Edge Functions stream with no size limit and are included in the free plan. `src/app/dl/route.ts` serves the same proxy when running `next dev` or on other hosts.
+
+## Environment variables
+
+| Name | Required | Notes |
+|---|---|---|
+| `DOWNLOAD_SECRET` | yes (production) | Long random string; signs download links. Set with scope **All** so the edge function sees it. `openssl rand -hex 32` |
+| `COBALT_API_URL` | for Instagram, YouTube, Facebook, Reddit, Pinterest | URL of a [cobalt](https://github.com/imputnet/cobalt) instance you run. The public `api.cobalt.tools` is not for third-party use. |
+| `COBALT_API_KEY` | if your cobalt instance requires keys | Sent as `Authorization: Api-Key …` |
+| `NEXT_PUBLIC_SHORTCUT_ICLOUD_URL` | no | iCloud link to the shared Shortcut; otherwise `/dwnld.shortcut` is used |
+
+## Development
+
 ```bash
 npm install
-# or
-yarn install
-# or
-pnpm install
+npm run dev        # http://localhost:3000 (uses a dev-only secret)
+npm run lint
 ```
 
-3. Run the development server:
+## iOS Shortcut
+
+`public/dwnld.shortcut` is generated and signed by `scripts/build-shortcut.py` (macOS, signed in to iCloud):
+
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
+python3 scripts/build-shortcut.py https://dwnld.in
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the application.
-
-## Project Structure
-
-- `src/app/` - Next.js app router pages and layouts
-- `src/components/` - Reusable React components
-- `public/` - Static assets
-
-## Technologies Used
-
-- Next.js 14
-- TypeScript
-- Tailwind CSS
-- Funnel Sans font
-
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
+It calls `GET /api/resolve?format=shortcut&url=…`, which always returns HTTP 200 with either `{ urls: [...] }` or `{ error }`.

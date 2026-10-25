@@ -1,5 +1,5 @@
-import type { Metadata } from "next";
-import { Funnel_Sans } from "next/font/google";
+import type { Metadata, Viewport } from "next";
+import { Bricolage_Grotesque, Funnel_Sans } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 
@@ -9,12 +9,34 @@ const funnelSans = Funnel_Sans({
   variable: "--font-funnel-sans",
 });
 
+const bricolage = Bricolage_Grotesque({
+  subsets: ["latin"],
+  axes: ["wdth", "opsz"],
+  variable: "--font-bricolage",
+});
+
 export const metadata: Metadata = {
-  title: "dwnld.in",
-  description: "A simple and efficient tool to download files from various sources",
+  metadataBase: new URL("https://dwnld.in"),
+  title: "dwnld.in · Save videos & photos from Instagram, TikTok, X, LinkedIn, YouTube",
+  description:
+    "Paste a link and save the video or photo. Works with Instagram reels, TikTok (no watermark), X / Twitter, LinkedIn and YouTube. Free, no sign-up, plus an iPhone share-sheet Shortcut.",
+  icons: { icon: "/icon.svg" },
+  openGraph: {
+    title: "dwnld.in",
+    description: "Save any video or photo from Instagram, TikTok, X, LinkedIn and YouTube.",
+    url: "https://dwnld.in",
+    siteName: "dwnld.in",
+  },
   other: {
     'google-adsense-account': 'ca-pub-1582802394629250',
   },
+};
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#eceef6" },
+    { media: "(prefers-color-scheme: dark)", color: "#0b0a24" },
+  ],
 };
 
 export default function RootLayout({
@@ -46,7 +68,7 @@ export default function RootLayout({
         </Script>
       </head>
       <body
-        className={`${funnelSans.variable} antialiased`}
+        className={`${funnelSans.variable} ${bricolage.variable} antialiased`}
       >
         {children}
       </body>
