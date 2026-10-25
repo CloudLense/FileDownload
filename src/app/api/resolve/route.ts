@@ -46,7 +46,9 @@ async function resolve(input: string | null, origin: string): Promise<ResolveRes
   const source = raw ? findUrl(raw) : null;
   if (!source) {
     throw new ExtractError(
-      raw ? `No link found in “${raw.slice(0, 80)}”. Share or paste a link to a post or video.` : 'Paste a link to a post or video.',
+      raw
+        ? `No link found in “${raw.slice(0, 80)}”. Share or paste a link to a post or video.`
+        : 'No link received. In the app, tap Share → Copy link, then run dwnld from your home screen; it reads the clipboard.',
       400,
     );
   }
