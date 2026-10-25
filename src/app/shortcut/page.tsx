@@ -6,9 +6,10 @@ export const metadata: Metadata = {
   description: 'Download Instagram, TikTok, X and LinkedIn videos straight to Photos from the iOS share sheet.',
 };
 
-// An iCloud link (from Shortcuts → Share → Copy iCloud Link) installs in one
-// tap; the signed file in /public is the fallback.
-const INSTALL_URL = process.env.NEXT_PUBLIC_SHORTCUT_ICLOUD_URL || '/dwnld.shortcut';
+// An iCloud link (Shortcuts → Share → Copy iCloud Link) opens the native
+// "Add Shortcut" sheet in one tap. Without one we can only offer the signed
+// file, which browsers download instead of installing.
+const ICLOUD_URL = process.env.NEXT_PUBLIC_SHORTCUT_ICLOUD_URL || '';
 
 const USE_STEPS = [
   'Open a post in Instagram, TikTok, X, LinkedIn or YouTube.',
@@ -43,15 +44,33 @@ export default function ShortcutPage() {
             A free Shortcut for the iOS share sheet. No app to install, no ads, no account. It sends the link to dwnld.in and saves what comes back
             straight to your camera roll.
           </p>
-          <a
-            href={INSTALL_URL}
-            className="mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-7 py-4 text-lg font-semibold text-accent-ink hover:brightness-105 sm:w-auto"
-          >
-            Add to Shortcuts
-          </a>
-          <p className="mt-3 text-sm text-muted">
-            Open this page in Safari on your iPhone. The first time it runs, iOS asks to allow dwnld.in and Photos access; choose “Always Allow”.
-          </p>
+          {ICLOUD_URL ? (
+            <>
+              <a
+                href={ICLOUD_URL}
+                className="press mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-7 py-4 text-lg font-semibold text-accent-ink hover:brightness-105 sm:w-auto"
+              >
+                Add to Shortcuts
+              </a>
+              <p className="mt-3 text-sm text-muted">
+                Opens the Shortcuts app; tap Add Shortcut. The first time it runs, iOS asks to allow dwnld.in and Photos access; choose Always
+                Allow.
+              </p>
+            </>
+          ) : (
+            <>
+              <a
+                href="/dwnld.shortcut"
+                className="press mt-8 inline-flex w-full items-center justify-center rounded-2xl bg-accent px-7 py-4 text-lg font-semibold text-accent-ink hover:brightness-105 sm:w-auto"
+              >
+                Download the Shortcut
+              </a>
+              <p className="mt-3 text-sm text-muted">
+                After it downloads, open the Files app, tap dwnld.shortcut in Downloads, then tap Add Shortcut. Or build it yourself in two
+                minutes with the steps below.
+              </p>
+            </>
+          )}
         </section>
 
         <section className="mt-14">

@@ -14,7 +14,7 @@ export interface ResolvedItem {
   thumbnail?: string;
   /** same-origin, forces a "save file" download */
   download: string;
-  /** straight CDN link (used by the iOS Shortcut to skip the proxy) */
+  /** straight CDN link, for API consumers that want to skip the proxy */
   direct: string;
 }
 
@@ -66,7 +66,9 @@ export async function GET(request: Request) {
         title: data.title ?? '',
         count: data.items.length,
         // Shortcuts' "Save to Photo Album" can't take audio, so only send visual media.
-        urls: data.items.filter((i) => i.type !== 'audio').map((i) => i.direct),
+        // Proxied through /dl so iOS asks for network access once (dwnld.in), not
+        // once per CDN host; TikTok alone rotates through many hostnames.
+        urls: data.items.filter((i) => i.type !== 'audio').map((i) => i.download),
       });
     }
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
