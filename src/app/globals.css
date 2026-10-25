@@ -66,10 +66,12 @@ body {
   color: var(--accent-ink);
 }
 
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 3px;
-  border-radius: 6px;
+/* In the base layer so utilities like focus:outline-none can override it. */
+@layer base {
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
 }
 
 /* ── Wordmark: "download" sheds its vowels into the link field ─────────── */
