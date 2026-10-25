@@ -41,13 +41,25 @@ function decodeLink(input: string): string {
   return value;
 }
 
-async function resolve(input: string | null, origin: string): Promise<ResolveResponse> {
-  const raw = input ? decodeLink(input) : '';
-  const source = raw ? findUrl(raw) : null;
+/** Finds a post link in text, including X app links like twitter://status?id=…. */
+function linkIn(text: string): string | null {
+  const appLink = text.match(/(?:twitter|x):\/\/status\?(?:[^\s]*&)?id=(\d+)/i);
+  if (appLink) return `https://x.com/i/status/${appLink[1]}`;
+  return findUrl(text);
+}
+
+/**
+ * `inputs` are, in order of preference, the fields a client sent: the link,
+ * then (Shortcut v5+) the shared item as text and its name. The first one
+ * with a link wins; if none has one, the error quotes what arrived.
+ */
+async function resolve(inputs: (string | null)[], origin: string): Promise<ResolveResponse> {
+  const raws = inputs.map((input) => (input ? decodeLink(input) : '')).filter(Boolean);
+  const source = raws.map(linkIn).find(Boolean);
   if (!source) {
     throw new ExtractError(
-      raw
-        ? `No link found in “${raw.slice(0, 80)}”. Share or paste a link to a post or video.`
+      raws.length
+        ? `No link found in ${raws.map((r) => `“${r.slice(0, 60)}”`).join(' / ')}. Share or paste a link to a post or video.`
         : 'No link received. In the app, tap Share → Copy link, then run dwnld from your home screen; it reads the clipboard.',
       400,
     );
@@ -104,7 +116,7 @@ export async function GET(request: Request) {
   const sharedAs = shortcut ? searchParams.get('type')?.trim().slice(0, 40) : undefined;
 
   try {
-    const data = await resolve(searchParams.get('url'), origin);
+    const data = await resolve(['url', 'text', 'name'].map((k) => searchParams.get(k)), origin);
     if (shortcut) {
       return NextResponse.json({
         title: data.title ?? '',
