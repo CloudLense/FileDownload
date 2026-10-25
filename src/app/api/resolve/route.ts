@@ -45,6 +45,18 @@ async function resolve(input: string | null, origin: string): Promise<ResolveRes
   return { ...result, source, items };
 }
 
+/**
+ * The public origin the request came in on. On Netlify, request.url carries
+ * the internal deploy host (main--<site>.netlify.app); the host the visitor
+ * used is in x-forwarded-host.
+ */
+function publicOrigin(request: Request): string {
+  const host = request.headers.get('x-forwarded-host')?.split(',')[0].trim();
+  if (!host) return new URL(request.url).origin;
+  const proto = request.headers.get('x-forwarded-proto')?.split(',')[0].trim() || 'https';
+  return `${proto}://${host}`;
+}
+
 function errorInfo(err: unknown): { message: string; status: number } {
   if (err instanceof ExtractError) return { message: err.message, status: err.status };
   console.error('[resolve] unexpected error', err);
@@ -57,7 +69,8 @@ function errorInfo(err: unknown): { message: string; status: number } {
  *   (always HTTP 200 so Shortcuts can read the "error" key)
  */
 export async function GET(request: Request) {
-  const { searchParams, origin } = new URL(request.url);
+  const { searchParams } = new URL(request.url);
+  const origin = publicOrigin(request);
   const shortcut = searchParams.get('format') === 'shortcut';
   // Shortcuts send their version as &v=N; v1 predates versioning and sends none.
   const update = shortcut ? shortcutUpdateNotice(Number(searchParams.get('v')) || 1) : null;
