@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { ExtractError, extract, type ExtractResult } from '@/lib/extract';
 import { findUrl } from '@/lib/platforms';
 import { downloadSecret } from '@/lib/secret';
-import { shortcutUpdateNotice } from '@/lib/shortcut';
+import { savedSummary, shortcutUpdate } from '@/lib/shortcut';
 import { signTicket } from '@/lib/ticket';
 
 export const dynamic = 'force-dynamic';
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
   const origin = publicOrigin(request);
   const shortcut = searchParams.get('format') === 'shortcut';
   // Shortcuts send their version as &v=N; v1 predates versioning and sends none.
-  const update = shortcut ? shortcutUpdateNotice(Number(searchParams.get('v')) || 1) : null;
+  const update = shortcut ? shortcutUpdate(Number(searchParams.get('v')) || 1) : null;
 
   // What the app put in the share sheet (Shortcut v4+), to explain failures.
   const sharedAs = shortcut ? searchParams.get('type')?.trim().slice(0, 40) : undefined;
@@ -118,20 +118,23 @@ export async function GET(request: Request) {
   try {
     const data = await resolve(['url', 'text', 'name'].map((k) => searchParams.get(k)), origin);
     if (shortcut) {
+      const visual = data.items.filter((i) => i.type !== 'audio');
       return NextResponse.json({
         title: data.title ?? '',
         count: data.items.length,
         // Shortcuts' "Save to Photo Album" can't take audio, so only send visual media.
         // Proxied through /dl so iOS asks for network access once (dwnld.in), not
         // once per CDN host; TikTok alone rotates through many hostnames.
-        urls: data.items.filter((i) => i.type !== 'audio').map((i) => i.download),
-        ...(update && { update }),
+        urls: visual.map((i) => i.download),
+        // v6+: shown above "Open" / "Done" once everything is saved.
+        summary: savedSummary(visual.map((i) => i.type)),
+        ...update,
       });
     }
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     const { message, status } = errorInfo(err);
     const error = sharedAs ? `${message} (The app shared: ${sharedAs}.)` : message;
-    return NextResponse.json({ error, ...(update && { update }) }, { status: shortcut ? 200 : status });
+    return NextResponse.json({ error, ...update }, { status: shortcut ? 200 : status });
   }
 }
