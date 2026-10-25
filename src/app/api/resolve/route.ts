@@ -100,6 +100,9 @@ export async function GET(request: Request) {
   // Shortcuts send their version as &v=N; v1 predates versioning and sends none.
   const update = shortcut ? shortcutUpdateNotice(Number(searchParams.get('v')) || 1) : null;
 
+  // What the app put in the share sheet (Shortcut v4+), to explain failures.
+  const sharedAs = shortcut ? searchParams.get('type')?.trim().slice(0, 40) : undefined;
+
   try {
     const data = await resolve(searchParams.get('url'), origin);
     if (shortcut) {
@@ -116,6 +119,7 @@ export async function GET(request: Request) {
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     const { message, status } = errorInfo(err);
-    return NextResponse.json({ error: message, ...(update && { update }) }, { status: shortcut ? 200 : status });
+    const error = sharedAs ? `${message} (The app shared: ${sharedAs}.)` : message;
+    return NextResponse.json({ error, ...(update && { update }) }, { status: shortcut ? 200 : status });
   }
 }
