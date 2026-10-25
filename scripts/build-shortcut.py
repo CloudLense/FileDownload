@@ -87,7 +87,9 @@ def action(identifier: str, **params) -> dict:
     return {"WFWorkflowActionIdentifier": f"is.workflow.actions.{identifier}", "WFWorkflowActionParameters": params}
 
 
-urls, kind, kind_encoded, clipboard, clip_urls, encoded, resolved, error, media, item, update = (new_id() for _ in range(11))
+urls, kind, kind_encoded, name, name_encoded, raw_encoded, clipboard, clip_urls, encoded, resolved, error, media, item, update = (
+    new_id() for _ in range(14)
+)
 link_group, if_group, repeat_group, update_group = new_id(), new_id(), new_id(), new_id()
 LINK = {"Type": "Variable", "VariableName": "link"}
 
@@ -97,6 +99,7 @@ actions = [
     # itself rather than a link, so save that directly.
     action("detect.link", UUID=urls, WFInput=attachment({"Type": "ExtensionInput"})),
     action("getitemtype", UUID=kind, WFInput=attachment({"Type": "ExtensionInput"})),
+    action("getitemname", UUID=name, WFInput=attachment({"Type": "ExtensionInput"})),
     *save_input_if(kind, "Media"),
     *save_input_if(kind, "Image"),
     action(
@@ -117,13 +120,19 @@ actions = [
     # what the app shared, so errors can explain failures.
     action("urlencode", UUID=encoded, WFInput=text(OBJ, LINK)),
     action("urlencode", UUID=kind_encoded, WFInput=text(OBJ, output(kind, "Type"))),
+    # "Get URLs" finds nothing in some apps' items (X shares a URL item it
+    # extracts as empty), so also send the item as plain text and its name.
+    action("urlencode", UUID=raw_encoded, WFInput=text(OBJ, {"Type": "ExtensionInput"})),
+    action("urlencode", UUID=name_encoded, WFInput=text(OBJ, output(name, "Name"))),
     action(
         "downloadurl",
         UUID=resolved,
         WFHTTPMethod="GET",
         WFURL=text_n(
-            f"{BASE_URL}/api/resolve?format=shortcut&v={VERSION}&type={OBJ}&url={OBJ}",
+            f"{BASE_URL}/api/resolve?format=shortcut&v={VERSION}&type={OBJ}&name={OBJ}&text={OBJ}&url={OBJ}",
             output(kind_encoded, "URL Encoded Text"),
+            output(name_encoded, "URL Encoded Text"),
+            output(raw_encoded, "URL Encoded Text"),
             output(encoded, "URL Encoded Text"),
         ),
     ),
