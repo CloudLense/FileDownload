@@ -24,9 +24,32 @@ export interface ResolveResponse extends Omit<ExtractResult, 'items'> {
   items: ResolvedItem[];
 }
 
+/**
+ * Undoes extra rounds of percent-encoding. iOS Shortcuts encodes a variable
+ * inserted into "Get Contents of URL" on top of our own "URL Encode" step, so
+ * the link can arrive as https%3A%2F%2F… after the usual single decode.
+ */
+function decodeLink(input: string): string {
+  let value = input.trim();
+  for (let i = 0; i < 3 && /%[0-9a-f]{2}/i.test(value) && !/^https?:\/\//i.test(value); i++) {
+    try {
+      value = decodeURIComponent(value);
+    } catch {
+      break;
+    }
+  }
+  return value;
+}
+
 async function resolve(input: string | null, origin: string): Promise<ResolveResponse> {
-  const source = input ? findUrl(input) : null;
-  if (!source) throw new ExtractError('Paste a link to a post or video.', 400);
+  const raw = input ? decodeLink(input) : '';
+  const source = raw ? findUrl(raw) : null;
+  if (!source) {
+    throw new ExtractError(
+      raw ? `No link found in “${raw.slice(0, 80)}”. Share or paste a link to a post or video.` : 'Paste a link to a post or video.',
+      400,
+    );
+  }
 
   const secret = downloadSecret();
   if (!secret) throw new ExtractError('Downloads are not configured on this server.', 500);
