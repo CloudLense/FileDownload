@@ -4,7 +4,8 @@
 Flow: Share sheet (any type) → shared media is saved directly; otherwise
 URLs in it, else URLs on the clipboard → GET /api/resolve?format=shortcut&v=N
 → show the error, or download every returned URL and save it to Photos, then
-→ if the reply carries an "update" notice, offer to open dwnld.in/shortcut.
+→ if a newer version exists, offer it first (Update now / Keep using vN);
+→ after saving, a menu says what was saved and offers to open it.
 
 The version comes from shortcut.json, which the site reads too.
 
@@ -64,6 +65,22 @@ def text_n(template: str, *variables: dict) -> dict:
     return {"Value": {"string": template, "attachmentsByRange": ranges}, "WFSerializationType": "WFTextTokenString"}
 
 
+def menu(prompt, items: dict) -> list:
+    """Choose from Menu: `items` maps each button title to the actions it runs."""
+    group = new_id()
+    out = [action("choosefrommenu", GroupingIdentifier=group, WFControlFlowMode=0, WFMenuPrompt=prompt, WFMenuItems=list(items))]
+    for title, steps in items.items():
+        out += [action("choosefrommenu", GroupingIdentifier=group, WFControlFlowMode=1, WFMenuItemTitle=title), *steps]
+    out.append(action("choosefrommenu", GroupingIdentifier=group, WFControlFlowMode=2, UUID=new_id()))
+    return out
+
+
+def saved_menu(prompt, files: dict) -> list:
+    """Confirms the save. A shortcut's notification can only open the Shortcuts
+    app when tapped, so a menu offers to preview the saved files instead."""
+    return menu(prompt, {"Open": [action("previewdocument", WFInput=attachment(files))], "Done": []})
+
+
 def save_input_if(kind_uuid: str, contains: str) -> list:
     """If the shared item's type contains `contains`, save it to Photos and stop."""
     group = new_id()
@@ -77,7 +94,7 @@ def save_input_if(kind_uuid: str, contains: str) -> list:
             WFInput={"Type": "Variable", "Variable": attachment(output(kind_uuid, "Type"))},
         ),
         action("savetocameraroll", WFInput=attachment({"Type": "ExtensionInput"})),
-        action("notification", WFNotificationActionTitle="dwnld", WFNotificationActionBody="Saved to Photos ✓"),
+        *saved_menu("Saved to Photos", {"Type": "ExtensionInput"}),
         action("exit"),
         action("conditional", GroupingIdentifier=group, WFControlFlowMode=2, UUID=new_id()),
     ]
@@ -87,10 +104,12 @@ def action(identifier: str, **params) -> dict:
     return {"WFWorkflowActionIdentifier": f"is.workflow.actions.{identifier}", "WFWorkflowActionParameters": params}
 
 
-urls, kind, kind_encoded, name, name_encoded, raw_encoded, clipboard, clip_urls, encoded, resolved, error, media, item, update = (
-    new_id() for _ in range(14)
+urls, kind, kind_encoded, name, name_encoded, raw_encoded, clipboard, clip_urls, encoded, resolved, error, media, item = (
+    new_id() for _ in range(13)
 )
+update_prompt, summary = new_id(), new_id()
 link_group, if_group, repeat_group, update_group = new_id(), new_id(), new_id(), new_id()
+FILES = {"Type": "Variable", "VariableName": "files"}
 LINK = {"Type": "Variable", "VariableName": "link"}
 
 actions = [
@@ -136,6 +155,32 @@ actions = [
             output(encoded, "URL Encoded Text"),
         ),
     ),
+    # A newer version? Offer it before doing anything else; the server writes
+    # the prompt, so its wording can change without a new release.
+    action(
+        "getvalueforkey", UUID=update_prompt, WFDictionaryKey="updatePrompt", WFInput=attachment(output(resolved, "Contents of URL"))
+    ),
+    action(
+        "conditional",
+        GroupingIdentifier=update_group,
+        WFControlFlowMode=0,
+        WFCondition=100,
+        WFInput={"Type": "Variable", "Variable": attachment(output(update_prompt, "Dictionary Value"))},
+    ),
+    *menu(
+        text(OBJ, output(update_prompt, "Dictionary Value")),
+        {
+            "Update now": [
+                action(
+                    "openurl",
+                    WFInput={"Value": {"string": f"{BASE_URL}/shortcut", "attachmentsByRange": {}}, "WFSerializationType": "WFTextTokenString"},
+                ),
+                action("exit"),
+            ],
+            f"Keep using v{VERSION}": [],
+        },
+    ),
+    action("conditional", GroupingIdentifier=update_group, WFControlFlowMode=2, UUID=new_id()),
     action("getvalueforkey", UUID=error, WFDictionaryKey="error", WFInput=attachment(output(resolved, "Contents of URL"))),
     action(
         "conditional",
@@ -161,28 +206,10 @@ actions = [
     ),
     action("downloadurl", UUID=item, WFURL=text(OBJ, {"Type": "Variable", "VariableName": "Repeat Item"})),
     action("savetocameraroll", WFInput=attachment(output(item, "Contents of URL"))),
+    action("appendvariable", WFVariableName="files", WFInput=attachment(output(item, "Contents of URL"))),
     action("repeat.each", GroupingIdentifier=repeat_group, WFControlFlowMode=2, UUID=new_id()),
-    action("notification", WFNotificationActionTitle="dwnld", WFNotificationActionBody="Saved to Photos ✓"),
-    # The server says when this version is out of date.
-    action("getvalueforkey", UUID=update, WFDictionaryKey="update", WFInput=attachment(output(resolved, "Contents of URL"))),
-    action(
-        "conditional",
-        GroupingIdentifier=update_group,
-        WFControlFlowMode=0,
-        WFCondition=100,
-        WFInput={"Type": "Variable", "Variable": attachment(output(update, "Dictionary Value"))},
-    ),
-    action(
-        "alert",
-        WFAlertActionTitle="Update available",
-        WFAlertActionMessage=text(OBJ, output(update, "Dictionary Value")),
-        WFAlertActionCancelButtonShown=True,
-    ),
-    action(
-        "openurl",
-        WFInput={"Value": {"string": f"{BASE_URL}/shortcut", "attachmentsByRange": {}}, "WFSerializationType": "WFTextTokenString"},
-    ),
-    action("conditional", GroupingIdentifier=update_group, WFControlFlowMode=2, UUID=new_id()),
+    action("getvalueforkey", UUID=summary, WFDictionaryKey="summary", WFInput=attachment(output(resolved, "Contents of URL"))),
+    *saved_menu(text(OBJ, output(summary, "Dictionary Value")), FILES),
 ]
 
 shortcut = {
