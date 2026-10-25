@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Builds public/dwnld.shortcut, the iOS share-sheet Shortcut.
 
-Flow: Share sheet (any type) → URLs in it, else clipboard → GET /api/resolve?format=shortcut&v=N
+Flow: Share sheet (any type) → shared media is saved directly; otherwise
+URLs in it, else URLs on the clipboard → GET /api/resolve?format=shortcut&v=N
 → show the error, or download every returned URL and save it to Photos, then
 → if the reply carries an "update" notice, offer to open dwnld.in/shortcut.
 
@@ -53,18 +54,51 @@ def text(template: str, var: dict) -> dict:
     }
 
 
+def text_n(template: str, *variables: dict) -> dict:
+    """A text field with one inline variable per OBJ, in order."""
+    ranges, start = {}, 0
+    for var in variables:
+        pos = template.index(OBJ, start)
+        ranges[f"{{{pos}, 1}}"] = var
+        start = pos + 1
+    return {"Value": {"string": template, "attachmentsByRange": ranges}, "WFSerializationType": "WFTextTokenString"}
+
+
+def save_input_if(kind_uuid: str, contains: str) -> list:
+    """If the shared item's type contains `contains`, save it to Photos and stop."""
+    group = new_id()
+    return [
+        action(
+            "conditional",
+            GroupingIdentifier=group,
+            WFControlFlowMode=0,
+            WFCondition=99,  # "contains"
+            WFConditionalActionString=contains,
+            WFInput={"Type": "Variable", "Variable": attachment(output(kind_uuid, "Type"))},
+        ),
+        action("savetocameraroll", WFInput=attachment({"Type": "ExtensionInput"})),
+        action("notification", WFNotificationActionTitle="dwnld", WFNotificationActionBody="Saved to Photos ✓"),
+        action("exit"),
+        action("conditional", GroupingIdentifier=group, WFControlFlowMode=2, UUID=new_id()),
+    ]
+
+
 def action(identifier: str, **params) -> dict:
     return {"WFWorkflowActionIdentifier": f"is.workflow.actions.{identifier}", "WFWorkflowActionParameters": params}
 
 
-urls, clipboard, encoded, resolved, error, media, item, update = (new_id() for _ in range(8))
+urls, kind, kind_encoded, clipboard, clip_urls, encoded, resolved, error, media, item, update = (new_id() for _ in range(11))
 link_group, if_group, repeat_group, update_group = new_id(), new_id(), new_id(), new_id()
 LINK = {"Type": "Variable", "VariableName": "link"}
 
 actions = [
-    # Like YAS: take any share-sheet input (apps such as X share rich items,
-    # not plain URLs), pull URLs out of it, and fall back to the clipboard.
+    # Like YAS: take any share-sheet input, pull URLs out of it, and fall back
+    # to URLs on the clipboard. Some apps (X's video player) share the media
+    # itself rather than a link, so save that directly.
     action("detect.link", UUID=urls, WFInput=attachment({"Type": "ExtensionInput"})),
+    action("getitemtype", UUID=kind, WFInput=attachment({"Type": "ExtensionInput"})),
+    *save_input_if(kind, "Media"),
+    *save_input_if(kind, "Image"),
     action(
         "conditional",
         GroupingIdentifier=link_group,
@@ -75,15 +109,23 @@ actions = [
     action("setvariable", WFVariableName="link", WFInput=attachment(output(urls, "URLs"))),
     action("conditional", GroupingIdentifier=link_group, WFControlFlowMode=1),
     action("getclipboard", UUID=clipboard),
-    action("setvariable", WFVariableName="link", WFInput=attachment(output(clipboard, "Clipboard"))),
+    # Only URLs: a non-text clipboard item would otherwise turn into its name.
+    action("detect.link", UUID=clip_urls, WFInput=attachment(output(clipboard, "Clipboard"))),
+    action("setvariable", WFVariableName="link", WFInput=attachment(output(clip_urls, "URLs"))),
     action("conditional", GroupingIdentifier=link_group, WFControlFlowMode=2, UUID=new_id()),
-    # The server finds the first link in whatever text arrives.
+    # The server finds the first link in whatever text arrives; "type" says
+    # what the app shared, so errors can explain failures.
     action("urlencode", UUID=encoded, WFInput=text(OBJ, LINK)),
+    action("urlencode", UUID=kind_encoded, WFInput=text(OBJ, output(kind, "Type"))),
     action(
         "downloadurl",
         UUID=resolved,
         WFHTTPMethod="GET",
-        WFURL=text(f"{BASE_URL}/api/resolve?format=shortcut&v={VERSION}&url={OBJ}", output(encoded, "URL Encoded Text")),
+        WFURL=text_n(
+            f"{BASE_URL}/api/resolve?format=shortcut&v={VERSION}&type={OBJ}&url={OBJ}",
+            output(kind_encoded, "URL Encoded Text"),
+            output(encoded, "URL Encoded Text"),
+        ),
     ),
     action("getvalueforkey", UUID=error, WFDictionaryKey="error", WFInput=attachment(output(resolved, "Contents of URL"))),
     action(
