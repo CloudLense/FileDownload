@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { ExtractError, extract, type ExtractResult } from '@/lib/extract';
 import { findUrl } from '@/lib/platforms';
 import { downloadSecret } from '@/lib/secret';
+import { shortcutUpdateNotice } from '@/lib/shortcut';
 import { signTicket } from '@/lib/ticket';
 
 export const dynamic = 'force-dynamic';
@@ -58,6 +59,8 @@ function errorInfo(err: unknown): { message: string; status: number } {
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url);
   const shortcut = searchParams.get('format') === 'shortcut';
+  // Shortcuts send their version as &v=N; v1 predates versioning and sends none.
+  const update = shortcut ? shortcutUpdateNotice(Number(searchParams.get('v')) || 1) : null;
 
   try {
     const data = await resolve(searchParams.get('url'), origin);
@@ -69,11 +72,12 @@ export async function GET(request: Request) {
         // Proxied through /dl so iOS asks for network access once (dwnld.in), not
         // once per CDN host; TikTok alone rotates through many hostnames.
         urls: data.items.filter((i) => i.type !== 'audio').map((i) => i.download),
+        ...(update && { update }),
       });
     }
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
     const { message, status } = errorInfo(err);
-    return NextResponse.json({ error: message }, { status: shortcut ? 200 : status });
+    return NextResponse.json({ error: message, ...(update && { update }) }, { status: shortcut ? 200 : status });
   }
 }

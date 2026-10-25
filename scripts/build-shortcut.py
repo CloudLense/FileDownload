@@ -1,13 +1,17 @@
 #!/usr/bin/env python3
 """Builds public/dwnld.shortcut, the iOS share-sheet Shortcut.
 
-Flow: Share sheet (or clipboard) → first URL → GET /api/resolve?format=shortcut
-→ show the error, or download every returned URL and save it to Photos.
+Flow: Share sheet (or clipboard) → first URL → GET /api/resolve?format=shortcut&v=N
+→ show the error, or download every returned URL and save it to Photos, then
+→ if the reply carries an "update" notice, offer to open dwnld.in/shortcut.
+
+The version comes from shortcut.json, which the site reads too.
 
 Usage (macOS, signed in to iCloud; iOS only imports signed shortcuts):
     python3 scripts/build-shortcut.py [https://dwnld.in]
 """
 
+import json
 import plistlib
 import subprocess
 import sys
@@ -16,7 +20,9 @@ import uuid
 from pathlib import Path
 
 BASE_URL = (sys.argv[1] if len(sys.argv) > 1 else "https://dwnld.in").rstrip("/")
-OUT = Path(__file__).resolve().parent.parent / "public" / "dwnld.shortcut"
+ROOT = Path(__file__).resolve().parent.parent
+OUT = ROOT / "public" / "dwnld.shortcut"
+VERSION = json.loads((ROOT / "shortcut.json").read_text())["version"]
 OBJ = "￼"  # Shortcuts' placeholder character for an inline variable
 
 
@@ -45,8 +51,8 @@ def action(identifier: str, **params) -> dict:
     return {"WFWorkflowActionIdentifier": f"is.workflow.actions.{identifier}", "WFWorkflowActionParameters": params}
 
 
-urls, first, encoded, resolved, error, media, item = (new_id() for _ in range(7))
-if_group, repeat_group = new_id(), new_id()
+urls, first, encoded, resolved, error, media, item, update = (new_id() for _ in range(8))
+if_group, repeat_group, update_group = new_id(), new_id(), new_id()
 
 actions = [
     action("detect.link", UUID=urls, WFInput=attachment({"Type": "ExtensionInput"})),
@@ -56,7 +62,7 @@ actions = [
         "downloadurl",
         UUID=resolved,
         WFHTTPMethod="GET",
-        WFURL=text(f"{BASE_URL}/api/resolve?format=shortcut&url={OBJ}", output(encoded, "URL Encoded Text")),
+        WFURL=text(f"{BASE_URL}/api/resolve?format=shortcut&v={VERSION}&url={OBJ}", output(encoded, "URL Encoded Text")),
     ),
     action("getvalueforkey", UUID=error, WFDictionaryKey="error", WFInput=attachment(output(resolved, "Contents of URL"))),
     action(
@@ -85,6 +91,26 @@ actions = [
     action("savetocameraroll", WFInput=attachment(output(item, "Contents of URL"))),
     action("repeat.each", GroupingIdentifier=repeat_group, WFControlFlowMode=2, UUID=new_id()),
     action("notification", WFNotificationActionTitle="dwnld", WFNotificationActionBody="Saved to Photos ✓"),
+    # The server says when this version is out of date.
+    action("getvalueforkey", UUID=update, WFDictionaryKey="update", WFInput=attachment(output(resolved, "Contents of URL"))),
+    action(
+        "conditional",
+        GroupingIdentifier=update_group,
+        WFControlFlowMode=0,
+        WFCondition=100,
+        WFInput={"Type": "Variable", "Variable": attachment(output(update, "Dictionary Value"))},
+    ),
+    action(
+        "alert",
+        WFAlertActionTitle="Update available",
+        WFAlertActionMessage=text(OBJ, output(update, "Dictionary Value")),
+        WFAlertActionCancelButtonShown=True,
+    ),
+    action(
+        "openurl",
+        WFInput={"Value": {"string": f"{BASE_URL}/shortcut", "attachmentsByRange": {}}, "WFSerializationType": "WFTextTokenString"},
+    ),
+    action("conditional", GroupingIdentifier=update_group, WFControlFlowMode=2, UUID=new_id()),
 ]
 
 shortcut = {
@@ -108,4 +134,4 @@ with tempfile.TemporaryDirectory() as tmp:
         plistlib.dump(shortcut, f, fmt=plistlib.FMT_BINARY)
     subprocess.run(["shortcuts", "sign", "--mode", "anyone", "--input", str(unsigned), "--output", str(OUT)], check=True)
 
-print(f"wrote {OUT} ({OUT.stat().st_size} bytes) for {BASE_URL}")
+print(f"wrote {OUT} (v{VERSION}, {OUT.stat().st_size} bytes) for {BASE_URL}")

@@ -1,21 +1,28 @@
 import type { Metadata } from 'next';
 import { SiteFooter, SiteHeader } from '@/components/SiteShell';
+import { SHORTCUT_ICLOUD_URL, SHORTCUT_UPDATED, SHORTCUT_VERSION } from '@/lib/shortcut';
 
 export const metadata: Metadata = {
   title: 'iPhone Shortcut · dwnld.in',
   description: 'Download Instagram, TikTok, X and LinkedIn videos straight to Photos from the iOS share sheet.',
 };
 
-// An iCloud link (Shortcuts → Share → Copy iCloud Link) opens the native
-// "Add Shortcut" sheet in one tap. Without one we can only offer the signed
-// file, which browsers download instead of installing.
-const ICLOUD_URL = process.env.NEXT_PUBLIC_SHORTCUT_ICLOUD_URL || '';
+// An iCloud link opens the native "Add Shortcut" sheet in one tap. Without
+// one we can only offer the signed file, which browsers download instead.
+const ICLOUD_URL = SHORTCUT_ICLOUD_URL;
+const UPDATED = new Date(`${SHORTCUT_UPDATED}T00:00:00Z`).toLocaleDateString('en-GB', {
+  day: 'numeric',
+  month: 'long',
+  year: 'numeric',
+  timeZone: 'UTC',
+});
 
 const USE_STEPS = [
   'Open a post in Instagram, TikTok, X, LinkedIn or YouTube.',
   'Tap Share, then pick dwnld (scroll down or tap “Edit Actions…” to pin it near the top).',
   'In apps that only offer “Copy link”, copy it and run dwnld from your home screen or widget instead; it reads the clipboard.',
   'Done. The video or photos are in your Photos app.',
+  'When a new version is out, dwnld tells you after a download and brings you back here to add it.',
 ];
 
 const BUILD_STEPS = [
@@ -53,7 +60,7 @@ export default function ShortcutPage() {
                 Add to Shortcuts
               </a>
               <p className="mt-3 text-sm text-muted">
-                Opens the Shortcuts app; tap Add Shortcut. The first time it runs, iOS asks to allow dwnld.in and Photos access; choose Always
+                Version {SHORTCUT_VERSION}, updated {UPDATED}. Opens the Shortcuts app; tap Add Shortcut. The first time it runs, iOS asks to allow dwnld.in and Photos access; choose Always
                 Allow.
               </p>
             </>
