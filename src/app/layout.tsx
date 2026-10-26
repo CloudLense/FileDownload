@@ -20,7 +20,7 @@ export const metadata: Metadata = {
   title: "dwnld.in · Save videos & photos from Instagram, TikTok, X, LinkedIn, YouTube",
   description:
     "Paste a link and save the video or photo. Works with Instagram reels, TikTok (no watermark), X / Twitter, LinkedIn and YouTube. Free, no sign-up, plus an iPhone share-sheet Shortcut.",
-  icons: { icon: "/icon.svg" },
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
   openGraph: {
     title: "dwnld.in",
     description: "Save any video or photo from Instagram, TikTok, X, LinkedIn and YouTube.",

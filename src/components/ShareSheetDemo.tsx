@@ -33,12 +33,17 @@ export default function ShareSheetDemo() {
                 </li>
               ))}
             </ol>
-            <Link
-              href="/shortcut"
-              className="press mt-7 inline-flex items-center rounded-full bg-ink px-6 py-3 font-semibold text-bg hover:opacity-90"
-            >
-              Get the Shortcut
-            </Link>
+            <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
+              <Link
+                href="/shortcut"
+                className="press inline-flex items-center rounded-full bg-ink px-6 py-3 font-semibold text-bg hover:opacity-90"
+              >
+                Get the Shortcut
+              </Link>
+              <Link href="/android" className="font-medium text-ink underline decoration-line underline-offset-4 hover:decoration-ink">
+                On Android? Install dwnld
+              </Link>
+            </div>
           </div>
 
           <Phone />

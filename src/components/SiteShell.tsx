@@ -13,7 +13,10 @@ export function SiteHeader() {
       </Link>
       <nav className="flex items-center gap-1 text-[15px]">
         <Link href="/shortcut" className="rounded-full px-3 py-1.5 text-muted transition-colors hover:text-ink">
-          iPhone Shortcut
+          iPhone
+        </Link>
+        <Link href="/android" className="rounded-full px-3 py-1.5 text-muted transition-colors hover:text-ink">
+          Android
         </Link>
         <Link href="/help" className="rounded-full px-3 py-1.5 text-muted transition-colors hover:text-ink">
           Help

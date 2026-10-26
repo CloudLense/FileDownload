@@ -12,7 +12,7 @@ import { detectPlatform, findUrl, PLATFORMS } from '@/lib/platforms';
 type State =
   | { status: 'idle' }
   | { status: 'loading'; source: string }
-  | { status: 'done'; data: ResolveResponse }
+  | { status: 'done'; data: ResolveResponse; autoSave: boolean }
   | { status: 'error'; message: string; source: string };
 
 interface RecentEntry {
@@ -79,7 +79,7 @@ export default function Downloader() {
   const detectedUrl = findUrl(input);
   const detected = detectedUrl ? detectPlatform(detectedUrl) : null;
 
-  const resolve = useCallback(async (raw: string) => {
+  const resolve = useCallback(async (raw: string, { autoSave = false } = {}) => {
     const source = findUrl(raw);
     if (!source) {
       transition(() =>
@@ -96,7 +96,7 @@ export default function Downloader() {
       const res = await fetch(`/api/resolve?url=${encodeURIComponent(source)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? 'Something went wrong on our side. Try again in a moment.');
-      transition(() => setState({ status: 'done', data }));
+      transition(() => setState({ status: 'done', data, autoSave }));
 
       const entry: RecentEntry = { source, title: data.title, thumbnail: data.thumbnail, platform: data.platform, at: Date.now() };
       const next = [entry, ...loadRecent().filter((r) => r.source !== source)].slice(0, 8);
@@ -118,7 +118,10 @@ export default function Downloader() {
       const shared = searchParams.get('url') ?? searchParams.get('text') ?? searchParams.get('title');
       if (shared) {
         autoRan.current = true;
-        resolve(shared);
+        // auto=1 comes from the Android share target (/share): save right away.
+        const autoSave = searchParams.get('auto') === '1';
+        if (autoSave) history.replaceState(null, '', `/?url=${encodeURIComponent(shared)}`);
+        resolve(shared, { autoSave });
       }
     }, 0);
     return () => clearTimeout(id);
@@ -244,7 +247,7 @@ export default function Downloader() {
             </button>
           </div>
         )}
-        {state.status === 'done' && <Result data={state.data} onReset={reset} />}
+        {state.status === 'done' && <Result data={state.data} autoSave={state.autoSave} onReset={reset} />}
       </div>
 
       {state.status === 'idle' && recent.length > 0 && (
@@ -290,7 +293,7 @@ export default function Downloader() {
   );
 }
 
-function Result({ data, onReset }: { data: ResolveResponse; onReset: () => void }) {
+function Result({ data, autoSave, onReset }: { data: ResolveResponse; autoSave: boolean; onReset: () => void }) {
   const platform = detectPlatform(data.source);
   const visual = data.items.filter((i) => i.type !== 'audio');
   const audio = data.items.filter((i) => i.type === 'audio');
@@ -324,7 +327,14 @@ function Result({ data, onReset }: { data: ResolveResponse; onReset: () => void 
 
       <ul className={`grid gap-3 ${visual.length > 1 ? 'grid-cols-2 lg:grid-cols-3' : ''}`}>
         {visual.map((item, i) => (
-          <MediaTile key={item.download} item={item} fallbackThumb={data.thumbnail} index={i} single={visual.length === 1} />
+          <MediaTile
+            key={item.download}
+            item={item}
+            fallbackThumb={data.thumbnail}
+            index={i}
+            single={visual.length === 1}
+            autoSave={autoSave && visual.length === 1}
+          />
         ))}
       </ul>
 
@@ -354,7 +364,19 @@ function Result({ data, onReset }: { data: ResolveResponse; onReset: () => void 
   );
 }
 
-function MediaTile({ item, fallbackThumb, index, single }: { item: ResolvedItem; fallbackThumb?: string; index: number; single: boolean }) {
+function MediaTile({
+  item,
+  fallbackThumb,
+  index,
+  single,
+  autoSave,
+}: {
+  item: ResolvedItem;
+  fallbackThumb?: string;
+  index: number;
+  single: boolean;
+  autoSave: boolean;
+}) {
   const thumb = item.thumbnail || fallbackThumb;
   return (
     <li className="tile-in group overflow-hidden rounded-[1.25rem] bg-surface-2" style={{ '--n': index } as React.CSSProperties}>
@@ -380,7 +402,7 @@ function MediaTile({ item, fallbackThumb, index, single }: { item: ResolvedItem;
       </div>
       <div className="flex items-center gap-2 p-2.5 pl-3.5">
         <p className="min-w-0 flex-1 truncate text-xs text-muted">{formatBytes(item.size) ?? item.filename}</p>
-        <SaveButton item={item} className="rounded-full bg-ink px-4 py-2 text-sm text-bg">
+        <SaveButton item={item} autoClick={autoSave} className="rounded-full bg-ink px-4 py-2 text-sm text-bg">
           Save
         </SaveButton>
       </div>
@@ -389,10 +411,26 @@ function MediaTile({ item, fallbackThumb, index, single }: { item: ResolvedItem;
 }
 
 /** A real download link that flips to a mint "Saved" tick when tapped. */
-function SaveButton({ item, className, children }: { item: ResolvedItem; className: string; children: React.ReactNode }) {
+function SaveButton({
+  item,
+  className,
+  children,
+  autoClick = false,
+}: {
+  item: ResolvedItem;
+  className: string;
+  children: React.ReactNode;
+  /** Start the download as soon as it renders (Android share flow). */
+  autoClick?: boolean;
+}) {
   const [saved, setSaved] = useState(false);
+  const ref = useRef<HTMLAnchorElement>(null);
+  useEffect(() => {
+    if (autoClick) ref.current?.click();
+  }, [autoClick]);
   return (
     <a
+      ref={ref}
       href={item.download}
       download={item.filename}
       onClick={() => {
