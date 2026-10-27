@@ -28,6 +28,8 @@ export class ExtractError extends Error {
   constructor(
     message: string,
     public status = 422,
+    /** Set when the client sent no usable link (the Shortcut adds what it shared). */
+    public code?: 'no_link',
   ) {
     super(message);
   }

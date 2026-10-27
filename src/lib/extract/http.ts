@@ -14,15 +14,15 @@ export async function fetchWithTimeout(url: string, init: RequestInit = {}): Pro
     });
   } catch (err) {
     if (err instanceof Error && err.name === 'TimeoutError') {
-      throw new ExtractError('The platform took too long to respond. Please try again.', 504);
+      throw new ExtractError('The site is taking too long to respond. Try again in a minute.', 504);
     }
-    throw new ExtractError('Could not reach the platform. Please try again.', 502);
+    throw new ExtractError('Couldn’t reach the site right now. Try again in a minute.', 502);
   }
 }
 
 export async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
   const res = await fetchWithTimeout(url, init);
-  if (!res.ok) throw new ExtractError(`The platform returned an error (${res.status}).`, 502);
+  if (!res.ok) throw new ExtractError('Couldn’t get this post right now. Try again in a minute.', 502);
   return (await res.json()) as T;
 }
 

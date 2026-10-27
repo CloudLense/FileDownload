@@ -62,6 +62,7 @@ async function resolve(inputs: (string | null)[], origin: string): Promise<Resol
         ? `No link found in ${raws.map((r) => `“${r.slice(0, 60)}”`).join(' / ')}. Share or paste a link to a post or video.`
         : 'No link received. In the app, tap Share → Copy link, then run dwnld from your home screen; it reads the clipboard.',
       400,
+      'no_link',
     );
   }
 
@@ -94,8 +95,8 @@ function publicOrigin(request: Request): string {
   return `${proto}://${host}`;
 }
 
-function errorInfo(err: unknown): { message: string; status: number } {
-  if (err instanceof ExtractError) return { message: err.message, status: err.status };
+function errorInfo(err: unknown): { message: string; status: number; code?: string } {
+  if (err instanceof ExtractError) return { message: err.message, status: err.status, code: err.code };
   console.error('[resolve] unexpected error', err);
   return { message: 'Something went wrong. Please try again.', status: 500 };
 }
@@ -133,8 +134,9 @@ export async function GET(request: Request) {
     }
     return NextResponse.json(data, { headers: { 'Cache-Control': 'no-store' } });
   } catch (err) {
-    const { message, status } = errorInfo(err);
-    const error = sharedAs ? `${message} (The app shared: ${sharedAs}.)` : message;
+    const { message, status, code } = errorInfo(err);
+    // What the app shared only helps explain a missing link; elsewhere it's noise.
+    const error = sharedAs && code === 'no_link' ? `${message} (The app shared: ${sharedAs}.)` : message;
     return NextResponse.json({ error, ...update }, { status: shortcut ? 200 : status });
   }
 }

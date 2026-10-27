@@ -49,10 +49,8 @@ export async function extract(rawUrl: string): Promise<ExtractResult> {
   }
 
   if (!cobaltConfigured()) {
-    throw new ExtractError(
-      platform === 'other' ? 'This link isn’t supported yet.' : `${detectPlatform(url).name} downloads are temporarily unavailable.`,
-      platform === 'other' ? 422 : 503,
-    );
+    const name = platform === 'other' ? 'This site' : detectPlatform(url).name;
+    throw new ExtractError(`${name} isn’t supported yet. Links from X, TikTok and LinkedIn work today.`, 422);
   }
   return extractCobalt(url, platform);
 }
